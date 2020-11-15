@@ -1,14 +1,26 @@
 from requests.api import request
+from requests.exceptions import SSLError
 from requests_html import HTMLSession
+import requests
 import re
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill
+import pyppeteer
 
 
 url = "https://www.terveys.gsk.fi/fi-fi/_adverse-effect-reportage"
-WORD_LIST = ['Write a review', 'review', 'Chat', 'Chatbot']
+WORD_LIST = []
 FILE_NAME = 'webpages_inputdata.xlsx'
 wb = load_workbook(FILE_NAME)
+
+
+# Appending keywords to the list from excel sheet
+def get_keywords():
+    keywords = wb['Keywords']
+    for row in range(2, keywords.max_row + 1):
+        # generates the links one by one
+        if value := keywords[f"A{row}"].value:
+                WORD_LIST.append(value)
 
 
 # Returns True if any of the given texts is found
@@ -46,6 +58,7 @@ def find_inputs(response):
 def customize_excel_sheet():
     global wb
     output = wb.create_sheet('Output') if 'Output' not in wb.sheetnames else wb['Output']
+    errors = wb.create_sheet('Errors') if 'Errors' not in wb.sheetnames else wb['Errors']
     
     font = Font(color="000000", bold=True)
     bg_color = PatternFill(fgColor='E8E8E8', fill_type='solid')
@@ -75,10 +88,18 @@ def generate_input_urls():
 
 # corrects the url
 def correct_url(url, session):
+    global wb
+    errors = wb['Errors']
     if not url.startswith('http'):
         url = 'https://' + url
-    r = session.get(url)
-    return r if r.ok else None
+    try:
+        r = session.get(url)
+    except SSLError:
+        r = session.get(url, verify=False)
+    except Exception as e:
+        r = None
+        errors.append((url, str(e)))
+    return r if r and r.ok else None
 
 
 # Returns data in a structured format
@@ -98,22 +119,29 @@ def get_data(response):
 
 def insert_data_to_excel():
     global wb
+    # gets keywords from excel sheet and appends it to the list
+    get_keywords() 
     customize_excel_sheet()
     session = HTMLSession()
     output = wb['Output']
+    errors = wb['Errors']
 
     # iterating through the input urls
     for url in generate_input_urls():
         if response := correct_url(url, session):
-            response.html.render(timeout=40)
-            data = get_data(response)
-            # appending data to the excel sheet
-            output.append((
-                url,
-                data['can_input'],
-                data['keyword_found'],
-            ))
+            try:
+                response.html.render(timeout=100)
+                data = get_data(response)
+                # appending data to the excel sheet
+                output.append((
+                    url,
+                    data['can_input'],
+                    data['keyword_found'],
+                ))
+            except pyppeteer.errors.TimeoutError as e:
+                errors.append((url, str(e)))
     wb.save(FILE_NAME)
 
 insert_data_to_excel()
+
 
