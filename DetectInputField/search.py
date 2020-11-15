@@ -6,10 +6,9 @@ from openpyxl.styles import Font, PatternFill
 
 
 url = "https://www.terveys.gsk.fi/fi-fi/_adverse-effect-reportage"
-WORD_LIST = ['review',]
-session = HTMLSession()
-r = session.get(url)
-wb = load_workbook('webpages_inputdata.xlsx')
+WORD_LIST = ['Write a review', 'review', 'Chat', 'Chatbot']
+FILE_NAME = 'webpages_inputdata.xlsx'
+wb = load_workbook(FILE_NAME)
 
 
 # Returns True if any of the given texts is found
@@ -52,7 +51,7 @@ def customize_excel_sheet():
     bg_color = PatternFill(fgColor='E8E8E8', fill_type='solid')
 
     # editing the output sheet
-    output_column = zip(('A',  'B', 'C'), ('URL', 'Keyword Found', 'Can Input'))
+    output_column = zip(('A',  'B', 'C'), ('URL', 'Can Input', 'Keyword Found'))
     for col, value in output_column:
         cell = output[f'{col}1']
         cell.value = value
@@ -74,7 +73,47 @@ def generate_input_urls():
             yield value
 
 
+# corrects the url
+def correct_url(url, session):
+    if not url.startswith('http'):
+        url = 'https://' + url
+    r = session.get(url)
+    return r if r.ok else None
+
+
+# Returns data in a structured format
 def get_data(response):
-    can_input = find_inputs(response)
     keyword_found = find_text(response, WORD_LIST)
-    
+    can_input = find_inputs(response) or bool(keyword_found)
+    data = {'can_input': can_input, 'keyword_found': keyword_found}
+    return data
+
+    # THIS BLOCK OF CODE WILL BE APPLICABLE IF KEYWORDS ARE GROUPED BY TYPES
+    # keyword = []
+    # for group in keyword_groups:
+    #     found = find_text(response, WORD_LIST)
+    #     if found:
+    #         keyword.append((group, found))
+
+
+def insert_data_to_excel():
+    global wb
+    customize_excel_sheet()
+    session = HTMLSession()
+    output = wb['Output']
+
+    # iterating through the input urls
+    for url in generate_input_urls():
+        if response := correct_url(url, session):
+            response.html.render(timeout=40)
+            data = get_data(response)
+            # appending data to the excel sheet
+            output.append((
+                url,
+                data['can_input'],
+                data['keyword_found'],
+            ))
+    wb.save(FILE_NAME)
+
+insert_data_to_excel()
+
