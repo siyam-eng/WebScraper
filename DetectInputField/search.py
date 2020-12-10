@@ -8,7 +8,6 @@ from openpyxl.styles import Font, PatternFill
 import pyppeteer
 
 
-url = "https://www.terveys.gsk.fi/fi-fi/_adverse-effect-reportage"
 WORD_LIST = []
 FILE_NAME = 'webpages_inputdata.xlsx'
 wb = load_workbook(FILE_NAME)
@@ -129,6 +128,7 @@ def insert_data_to_excel():
     # iterating through the input urls
     for url in generate_input_urls():
         if response := correct_url(url, session):
+            print("[PROCESSING] - ", f'[{url}]', end=' ')
             try:
                 response.html.render(timeout=100)
                 data = get_data(response)
@@ -138,8 +138,10 @@ def insert_data_to_excel():
                     data['can_input'],
                     data['keyword_found'],
                 ))
+                print('[Successful]')
             except pyppeteer.errors.TimeoutError as e:
                 errors.append((url, str(e)))
+                print(['[Timeout Error]'])
     wb.save(FILE_NAME)
 
 insert_data_to_excel()
