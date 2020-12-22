@@ -52,7 +52,6 @@ def find_inputs(response):
 
 
 
-
 # Prepares the excel sheets and names the columns
 def customize_excel_sheet():
     global wb
