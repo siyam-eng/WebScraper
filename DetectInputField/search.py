@@ -6,6 +6,7 @@ import re
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill
 import pyppeteer
+import threading
 
 
 WORD_LIST = []
@@ -91,13 +92,13 @@ def correct_url(url, session):
     if not url.startswith('http'):
         url = 'https://' + url
     try:
-        r = session.get(url)
+        r = session.get(url, timeout=5)
     except SSLError:
-        r = session.get(url, verify=False)
+        r = session.get(url, verify=False, timeout=5)
     except Exception as e:
         r = None
         errors.append((url, str(e)))
-    return r if r and r.ok else None
+    return r if (r and r.ok) else None
 
 
 # Returns data in a structured format
@@ -120,12 +121,13 @@ def insert_data_to_excel():
     # gets keywords from excel sheet and appends it to the list
     get_keywords() 
     customize_excel_sheet()
-    session = HTMLSession()
     output = wb['Output']
     errors = wb['Errors']
 
-    # iterating through the input urls
-    for url in generate_input_urls():
+    # inserts one row
+    def insert_row(url):
+        # CREATION OF NEW SESSION EVERY TIME IS NECESSARY OTHERWISE THE PROGRAM HANGS :)
+        session = HTMLSession()
         if response := correct_url(url, session):
             print("[PROCESSING] - ", f'[{url}]', end=' ')
             try:
@@ -140,7 +142,13 @@ def insert_data_to_excel():
                 print('[Successful]')
             except pyppeteer.errors.TimeoutError as e:
                 errors.append((url, str(e)))
-                print(['[Timeout Error]'])
+                print('[Timeout Error]')
+            except Exception as e:
+                errors.append((url, str(e)))
+
+    # iterating through the input urls
+    for url in generate_input_urls():
+        insert_row(url)
     wb.save(FILE_NAME)
 
 insert_data_to_excel()
