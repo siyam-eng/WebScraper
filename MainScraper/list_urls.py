@@ -7,8 +7,11 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill
 import random
 
+# determines if links should be case sensitive or not
+CASE_SENSITIVE = False
 
 def map_urls(main_url):
+    main_url = main_url.lower() if not CASE_SENSITIVE else main_url
     HEADERS_LIST = [
     'Mozilla/5.0 (Windows; U; Windows NT 6.1; x64; fr; rv:1.9.2.13) Gecko/20101203 Firebird/3.6.13',
     'Mozilla/5.0 (compatible, MSIE 11, Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko',
@@ -63,6 +66,7 @@ def map_urls(main_url):
         for link in soup.find_all('a'):
             # extract link url from the anchor    
             anchor = link.attrs["href"] if 'href' in link.attrs else ''
+            anchor = anchor.lower() if not CASE_SENSITIVE else anchor
             # stopping duplication and filtering out usable links
 
             # checking if the url is a image url
@@ -94,7 +98,7 @@ def map_urls(main_url):
 
 
 if __name__ == '__main__':
-    FILE_PATH = 'C:\\Users\\Administrator\\Downloads\\webpages.xlsx'
+    FILE_PATH = 'webpages.xlsx'
     NEW_URL_STARTING_ROW = 2
 
     wb = load_workbook(FILE_PATH)

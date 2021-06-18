@@ -104,7 +104,7 @@ def get_homepage_data(url, statement1, statement2, statement3, link1, link2, lin
     link_5 = find_link(soup, link5)
     link_6 = find_link(soup, link6)
     lang = find_html_lang(soup)
-    no_direct_yt_link = not find_link(soup, 'youtube.com')
+    no_direct_yt_link = not (find_link(soup, 'youtube.com/em') or find_link(soup, 'youtube.com/wa'))
 
     data_dict = {'url': url, 'GTM': gtm,
     'statement1': statement_1, 
@@ -123,149 +123,145 @@ def get_homepage_data(url, statement1, statement2, statement3, link1, link2, lin
 
 
 
-if __name__ == '__main__':
-    def main():
-        FILE_PATH = 'webpages (1).xlsx'
-        HOMEPAGE_ONLY = True
-        NEW_URL_STARTING_ROW = 2
 
-        wb = load_workbook(FILE_PATH)
-        websites = wb['Websites']
-        page_results = wb.create_sheet('Page Results') if 'Page Results' not in wb.sheetnames else wb['Page Results']
-        errors = wb.create_sheet('Errors') if 'Errors' not in wb.sheetnames else wb['Errors']
+def main(FILE_PATH):
+    HOMEPAGE_ONLY = True
+    NEW_URL_STARTING_ROW = 2
 
-        font = Font(color="000000", bold=True)
-        bg_color = PatternFill(fgColor='E8E8E8', fill_type='solid')
+    wb = load_workbook(FILE_PATH)
+    websites = wb['Websites']
+    page_results = wb.create_sheet('Page Results') if 'Page Results' not in wb.sheetnames else wb['Page Results']
+    errors = wb.create_sheet('Errors') if 'Errors' not in wb.sheetnames else wb['Errors']
 
-        # editing the users sheet
-        page_results_columns = zip(('A',  'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'), ('Webpage', 'GTM', 'href-lang', 'link1', 'link2', 'link3', 'link4', 'link5', 'link6', 'statement1', 'statement2', 'statement3', 'Page contains no direct youtube links'))
-        for col, value in page_results_columns:
-            cell = page_results[f'{col}1']
-            cell.value = value
-            cell.font = font
-            cell.fill = bg_color
-            page_results.freeze_panes = cell
+    font = Font(color="000000", bold=True)
+    bg_color = PatternFill(fgColor='E8E8E8', fill_type='solid')
 
-            # fixing the column width
-            page_results.column_dimensions[col].width = 20
+    # editing the users sheet
+    page_results_columns = zip(('A',  'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'), ('Webpage', 'GTM', 'href-lang', 'link1', 'link2', 'link3', 'link4', 'link5', 'link6', 'statement1', 'statement2', 'statement3', 'Page contains no direct youtube links'))
+    for col, value in page_results_columns:
+        cell = page_results[f'{col}1']
+        cell.value = value
+        cell.font = font
+        cell.fill = bg_color
+        page_results.freeze_panes = cell
 
-        # Editing the errors sheet
-        for col, value in (('A', 'Error URL'), ('B', 'Error Name')):
-            cell = errors[f'{col}1']
-            cell.value = value
-            cell.font = font
-            cell.fill = bg_color
-            # fixing the column width
-            errors.column_dimensions[col].width = 40
-        
-        def website_urls_generator():
-            start = NEW_URL_STARTING_ROW
-            for row in range(start, websites.max_row + 1):
-                website = websites[f'A{row}'].value
-                link1 = websites[f'B{row}'].value
-                link2 = websites[f'C{row}'].value
-                link3 = websites[f'D{row}'].value
-                link4 = websites[f'E{row}'].value
-                link5 = websites[f'F{row}'].value
-                link6 = websites[f'G{row}'].value
-                statement1 = websites[f'H{row}'].value
-                statement2 = websites[f'I{row}'].value
-                statement3 = websites[f'J{row}'].value
+        # fixing the column width
+        page_results.column_dimensions[col].width = 20
 
-                if website:
-                    data_row = {'url': website,
-                    'link1': link1,
-                    'link2': link2,
-                    'link3': link3,
-                    'link4': link4,
-                    'link5': link5,
-                    'link6': link6,
-                    'statement1': statement1,
-                    'statement2': statement2,
-                    'statement3': statement3
+    # Editing the errors sheet
+    for col, value in (('A', 'Error URL'), ('B', 'Error Name')):
+        cell = errors[f'{col}1']
+        cell.value = value
+        cell.font = font
+        cell.fill = bg_color
+        # fixing the column width
+        errors.column_dimensions[col].width = 40
+    
+    def website_urls_generator():
+        start = NEW_URL_STARTING_ROW
+        for row in range(start, websites.max_row + 1):
+            website = websites[f'A{row}'].value
+            link1 = websites[f'B{row}'].value
+            link2 = websites[f'C{row}'].value
+            link3 = websites[f'D{row}'].value
+            link4 = websites[f'E{row}'].value
+            link5 = websites[f'F{row}'].value
+            link6 = websites[f'G{row}'].value
+            statement1 = websites[f'H{row}'].value
+            statement2 = websites[f'I{row}'].value
+            statement3 = websites[f'J{row}'].value
 
-                    }
-                    yield data_row
+            if website:
+                data_row = {'url': website,
+                'link1': link1,
+                'link2': link2,
+                'link3': link3,
+                'link4': link4,
+                'link5': link5,
+                'link6': link6,
+                'statement1': statement1,
+                'statement2': statement2,
+                'statement3': statement3
 
-        for website in website_urls_generator():
-            if HOMEPAGE_ONLY:
-                # fetching data from the excel sheet
+                }
+                yield data_row
+
+    for website in website_urls_generator():
+        if HOMEPAGE_ONLY:
+            # fetching data from the excel sheet
+            try:
+                data_dict = get_homepage_data(website['url'], 
+                    website['statement1'], 
+                    website['statement2'], 
+                    website['statement3'], 
+                    website['link1'], 
+                    website['link2'], 
+                    website['link3'],
+                    website['link4'], 
+                    website['link5'], 
+                    website['link6'])
+
+                # appending data to the excel sheet
+                page_results.append((
+                    data_dict['url'],
+                    data_dict['GTM'],
+                    data_dict['lang'],
+                    data_dict['link1'],
+                    data_dict['link2'],
+                    data_dict['link3'],
+                    data_dict['link4'],
+                    data_dict['link5'],
+                    data_dict['link6'],
+                    data_dict['statement1'],
+                    data_dict['statement2'],
+                    data_dict['statement3'],
+                    data_dict['no_direct_yt_link']
+
+                ))
+            except Exception as e:
+                print(website['url'] + " Fails due to ", e)
+                errors.append((website['url'], str(e)))
+
+        else:
+            for webpage in get_data(website['url'], 
+            website['statement1'], 
+            website['statement2'], 
+            website['statement3'], 
+            website['link1'], 
+            website['link2'], 
+            website['link3'],
+            website['link4'], 
+            website['link5'], 
+            website['link6']):
                 try:
-                    data_dict = get_homepage_data(website['url'], 
-                        website['statement1'], 
-                        website['statement2'], 
-                        website['statement3'], 
-                        website['link1'], 
-                        website['link2'], 
-                        website['link3'],
-                        website['link4'], 
-                        website['link5'], 
-                        website['link6'])
-
-                    # appending data to the excel sheet
+                    print(webpage)
                     page_results.append((
-                        data_dict['url'],
-                        data_dict['GTM'],
-                        data_dict['lang'],
-                        data_dict['link1'],
-                        data_dict['link2'],
-                        data_dict['link3'],
-                        data_dict['link4'],
-                        data_dict['link5'],
-                        data_dict['link6'],
-                        data_dict['statement1'],
-                        data_dict['statement2'],
-                        data_dict['statement3'],
-                        data_dict['no_direct_yt_link']
+                        webpage['url'],
+                        webpage['GTM'],
+                        webpage['lang'],
+                        webpage['link1'],
+                        webpage['link2'],
+                        webpage['link3'],
+                        webpage['link4'],
+                        webpage['link5'],
+                        webpage['link6'],
+                        webpage['statement1'],
+                        webpage['statement2'],
+                        webpage['statement3'],
+                        webpage['no_direct_yt_link'],
 
                     ))
                 except Exception as e:
-                    print(website['url'] + " Fails due to ", e)
-                    errors.append((website['url'], str(e)))
- 
-            else:
-                for webpage in get_data(website['url'], 
-                website['statement1'], 
-                website['statement2'], 
-                website['statement3'], 
-                website['link1'], 
-                website['link2'], 
-                website['link3'],
-                website['link4'], 
-                website['link5'], 
-                website['link6']):
-                    try:
-                        print(webpage)
-                        page_results.append((
-                            webpage['url'],
-                            webpage['GTM'],
-                            webpage['lang'],
-                            webpage['link1'],
-                            webpage['link2'],
-                            webpage['link3'],
-                            webpage['link4'],
-                            webpage['link5'],
-                            webpage['link6'],
-                            webpage['statement1'],
-                            webpage['statement2'],
-                            webpage['statement3'],
-                            webpage['no_direct_yt_link'],
+                    print(webpage + " Fails due to ", e)
+                    errors.append((webpage, str(e)))
 
-                        ))
-                    except Exception as e:
-                        print(webpage + " Fails due to ", e)
-                        errors.append((webpage, str(e)))
+    try:
+        wb.save(FILE_PATH)
+    except PermissionError:
+        print('PermissionError: Please close the working excel file')
 
-        try:
-            wb.save(FILE_PATH)
-        except PermissionError:
-            print('PermissionError: Please close the working excel file')
-    main()
 
-# soup = BeautifulSoup("""
-# <body>
-# <a href="https://www.privacy.gsk.com/cs-cz/Otrivin-cz"></a>
-# </body>
-# """, 'html.parser')
-# print(find_link(soup, 'privacy.gsk.com/cs-cz/Otrivin-cz/'))
+if __name__ == '__main__':
+    FILE_PATH = 'webpages.xlsx'
+    main(FILE_PATH)
 

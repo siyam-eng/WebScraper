@@ -54,67 +54,63 @@ def get_codes(url, soup, code_generator):
             yield {'url': url, 'code': code, 'type': code_type, 'length': len(code)}
 
 
+def main():
+    FILE_PATH = 'webpages.xlsx'
+    NEW_URL_STARTING_ROW = 2
+
+    wb = load_workbook(FILE_PATH)
+    webpages = wb['Webpages']
+    code_lookups = wb['Code_Lookups']
+    codes = wb.create_sheet('Codes') if 'Codes' not in wb.sheetnames else wb['Codes']
+
+    font = Font(color="000000", bold=True)
+    bg_color = PatternFill(fgColor='E8E8E8', fill_type='solid')
+
+    # editing the users sheet
+    codes_columns = zip(('A',  'B', 'C', 'D'), ('Web Page', 'Code Type', 'Code', 'Lenth'))
+    for col, value in codes_columns:
+        cell = codes[f'{col}1']
+        cell.value = value
+        cell.font = font
+        cell.fill = bg_color
+        codes.freeze_panes = cell
+
+        # fixing the column width
+        codes.column_dimensions[col].width = 20
+
+    def webpage_urls_generator():
+        start = NEW_URL_STARTING_ROW
+        for row in range(start, webpages.max_row + 1):
+            cell = webpages[f'A{row}']
+            if cell.value:
+                yield cell.value 
+
+    def codes_lookups_generator():
+        start = 2
+        for row in range(start, code_lookups.max_row + 1):
+            cell = code_lookups[f'A{row}']
+            if cell.value:
+                yield cell.value 
+
+    for webpage in webpage_urls_generator():
+        header = {'User-Agent': random.choice(HEADERS_LIST), 'X-Requested-With': 'XMLHttpRequest'}
+        response = requests.get(webpage, headers=header)
+        if not response.ok:
+            response = requests.get(webpage)
+        soup = BeautifulSoup(response.text,"html.parser")
+
+        code_generator = codes_lookups_generator()
+        for code in get_codes(webpage, soup, code_generator):
+            print(code)
+            codes.append((
+                code['url'],
+                code['code'],
+                code['type'],
+                code['length'],
+            ))
+    wb.save(FILE_PATH)
 
 
 if __name__ == '__main__':
-    def main():
-        FILE_PATH = 'C:\\Users\\Administrator\\Downloads\\webpages (1).xlsx'
-        NEW_URL_STARTING_ROW = 2
+    main()
 
-        wb = load_workbook(FILE_PATH)
-        webpages = wb['Webpages']
-        code_lookups = wb['Code_Lookups']
-        codes = wb.create_sheet('Codes') if 'Codes' not in wb.sheetnames else wb['Codes']
-
-        font = Font(color="000000", bold=True)
-        bg_color = PatternFill(fgColor='E8E8E8', fill_type='solid')
-
-        # editing the users sheet
-        codes_columns = zip(('A',  'B', 'C', 'D'), ('Web Page', 'Code Type', 'Code', 'Lenth'))
-        for col, value in codes_columns:
-            cell = codes[f'{col}1']
-            cell.value = value
-            cell.font = font
-            cell.fill = bg_color
-            codes.freeze_panes = cell
-
-            # fixing the column width
-            codes.column_dimensions[col].width = 20
-
-        def webpage_urls_generator():
-            start = NEW_URL_STARTING_ROW
-            for row in range(start, webpages.max_row + 1):
-                cell = webpages[f'A{row}']
-                if cell.value:
-                    yield cell.value 
-
-        def codes_lookups_generator():
-            start = 2
-            for row in range(start, code_lookups.max_row + 1):
-                cell = code_lookups[f'A{row}']
-                if cell.value:
-                    yield cell.value 
-
-        for webpage in webpage_urls_generator():
-            header = {'User-Agent': random.choice(HEADERS_LIST), 'X-Requested-With': 'XMLHttpRequest'}
-            response = requests.get(webpage, headers=header)
-            if not response.ok:
-                response = requests.get(webpage)
-            soup = BeautifulSoup(response.text,"html.parser")
-
-            code_generator = codes_lookups_generator()
-            for code in get_codes(webpage, soup, code_generator):
-                print(code)
-                codes.append((
-                    code['url'],
-                    code['code'],
-                    code['type'],
-                    code['length'],
-                ))
-        wb.save(FILE_PATH)
-    # main()
-
-
-r = requests.get('https://www.macleans.co.uk/')
-soup = BeautifulSoup(r.content, 'html.parser')
-print(find_code(soup, 'CHMAC'))

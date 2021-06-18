@@ -1,17 +1,13 @@
 from requests.api import request
 from requests.exceptions import SSLError
 from requests_html import HTMLSession
-import requests
-import re
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill
 import pyppeteer
-import threading
-
 
 WORD_LIST = []
-FILE_NAME = 'webpages_inputdata.xlsx'
-wb = load_workbook(FILE_NAME)
+FILE_PATH = 'webpages_inputdata.xlsx'
+wb = load_workbook(FILE_PATH)
 
 
 # Appending keywords to the list from excel sheet
@@ -149,8 +145,9 @@ def insert_data_to_excel():
     # iterating through the input urls
     for url in generate_input_urls():
         insert_row(url)
-    wb.save(FILE_NAME)
+    wb.save(FILE_PATH)
 
+# Run the function
 insert_data_to_excel()
 
 
