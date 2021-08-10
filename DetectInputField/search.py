@@ -1,4 +1,3 @@
-from requests.api import request
 from requests.exceptions import SSLError
 from requests_html import HTMLSession
 from openpyxl import load_workbook

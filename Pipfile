@@ -28,6 +28,8 @@ tqdm = "==4.54.1"
 urllib3 = "==1.26.2"
 w3lib = "==1.22.0"
 websockets = "==8.1"
+selenium = "*"
+termcolor = "*"
 
 [dev-packages]
 

@@ -1,10 +1,13 @@
-from bs4 import BeautifulSoup
 import requests
 import requests.exceptions
+
 import re
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill
 import random
+from list_urls import get_soup, init_driver, website_urls_generator
+from termcolor import colored
+
 
 HEADERS_LIST = [
 'Mozilla/5.0 (Windows; U; Windows NT 6.1; x64; fr; rv:1.9.2.13) Gecko/20101203 Firebird/3.6.13',
@@ -54,19 +57,44 @@ def get_codes(url, soup, code_generator):
             yield {'url': url, 'code': code, 'type': code_type, 'length': len(code)}
 
 
+def codes_lookups_generator(code_lookups, start=2):
+    for row in range(start, code_lookups.max_row + 1):
+        cell = code_lookups[f'A{row}']
+        if cell.value:
+            yield cell.value 
+
+
+def get_response(url):
+    """Send a http request to the given url and return the response"""
+    header = {'User-Agent': random.choice(HEADERS_LIST), 'X-Requested-With': 'XMLHttpRequest'}
+    url = 'https://' + url if not url.startswith('http') else url
+    try:
+        response = requests.get(url, headers=header)
+        if not response.ok:
+            response = requests.get(url)
+        
+        return response
+
+    except Exception as exception:
+        print(colored(f"{url} failed due to {exception}", 'red'))
+
+
+
 def main():
     FILE_PATH = 'webpages.xlsx'
-    NEW_URL_STARTING_ROW = 2
+    driver = init_driver()
 
+    # initialize the necessary excel sheets
     wb = load_workbook(FILE_PATH)
-    webpages = wb['Webpages']
+    webpages = wb['Websites']
     code_lookups = wb['Code_Lookups']
     codes = wb.create_sheet('Codes') if 'Codes' not in wb.sheetnames else wb['Codes']
 
+    # specify the styles
     font = Font(color="000000", bold=True)
     bg_color = PatternFill(fgColor='E8E8E8', fill_type='solid')
 
-    # editing the users sheet
+    # edit the users sheet
     codes_columns = zip(('A',  'B', 'C', 'D'), ('Web Page', 'Code Type', 'Code', 'Lenth'))
     for col, value in codes_columns:
         cell = codes[f'{col}1']
@@ -75,40 +103,28 @@ def main():
         cell.fill = bg_color
         codes.freeze_panes = cell
 
-        # fixing the column width
+        # fix the column width
         codes.column_dimensions[col].width = 20
 
-    def webpage_urls_generator():
-        start = NEW_URL_STARTING_ROW
-        for row in range(start, webpages.max_row + 1):
-            cell = webpages[f'A{row}']
-            if cell.value:
-                yield cell.value 
+    # iterate over the webpages given on the excel file
+    for webpage in website_urls_generator(webpages):
+        soup = get_soup(driver, webpage)
 
-    def codes_lookups_generator():
-        start = 2
-        for row in range(start, code_lookups.max_row + 1):
-            cell = code_lookups[f'A{row}']
-            if cell.value:
-                yield cell.value 
-
-    for webpage in webpage_urls_generator():
-        header = {'User-Agent': random.choice(HEADERS_LIST), 'X-Requested-With': 'XMLHttpRequest'}
-        response = requests.get(webpage, headers=header)
-        if not response.ok:
-            response = requests.get(webpage)
-        soup = BeautifulSoup(response.text,"html.parser")
-
-        code_generator = codes_lookups_generator()
-        for code in get_codes(webpage, soup, code_generator):
-            print(code)
-            codes.append((
-                code['url'],
-                code['code'],
-                code['type'],
-                code['length'],
-            ))
+        if soup:
+            code_generator = codes_lookups_generator(code_lookups)
+            for code in get_codes(webpage, soup, code_generator):
+                print(colored(code, 'magenta'))
+                codes.append((
+                    code['url'],
+                    code['code'],
+                    code['type'],
+                    code['length'],
+                ))
+                # save after every code
+                wb.save(FILE_PATH)
+    # save at the end
     wb.save(FILE_PATH)
+    print(f"Saved the CODES into {FILE_PATH}")
 
 
 if __name__ == '__main__':
