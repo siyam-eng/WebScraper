@@ -126,6 +126,9 @@ def main():
     wb.save(FILE_PATH)
     print(f"Saved the CODES into {FILE_PATH}")
 
+    # close the driver
+    driver.close()
+
 
 if __name__ == '__main__':
     main()

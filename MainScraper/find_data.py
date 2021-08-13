@@ -6,21 +6,24 @@ from list_urls import map_urls, get_soup, init_driver
 from termcolor import colored
 
 
-
-
 def find_gtm(soup):
-    """ "Gets the GTM from a web page"""
-    if soup and soup.find("head"):
-        gtm_container = soup.head.findAll("script", text=re.compile(r"GTM"))
+    """Gets the GTM from a web page"""
+    amp_analytics = soup.find("amp-analytics")
+    if soup:
+        # search the gtm on script tags
+        gtm_container = soup.findAll("script", text=re.compile(r"GTM"))
         if gtm_container:
             gtm_code = re.search("GTM-[A-Z0-9]{6,7}", str(gtm_container))
-            gtm_code = (
-                re.search("GTM-[A-Z0-9]{6,7}", str(gtm_container))[0]
-                if gtm_code
-                else None
-            )
-
+            gtm_code =  re.search("GTM-[A-Z0-9]{6,7}", str(gtm_container))[0] if gtm_code else None
             return gtm_code
+
+        # if gtm is not in script tags search it in the amp-analytics tag
+        if amp_analytics:
+            config = amp_analytics.get("config")
+            gtm_code = re.search("GTM-[A-Z0-9]{6,7}", str(config))
+            gtm_code = gtm_code[0] if gtm_code else None
+            return gtm_code
+
 
 
 def find_statement(soup, statement):
@@ -48,7 +51,17 @@ def find_html_lang(soup):
 
 
 def get_data(
-    driver, url, statement1, statement2, statement3, link1, link2, link3, link4, link5, link6
+    driver,
+    url,
+    statement1,
+    statement2,
+    statement3,
+    link1,
+    link2,
+    link3,
+    link4,
+    link5,
+    link6,
 ):
     """Gets the gtm and lang from a page and check for presence of links and statements mentioned."""
 
@@ -88,7 +101,17 @@ def get_data(
 
 
 def get_homepage_data(
-    driver, url, statement1, statement2, statement3, link1, link2, link3, link4, link5, link6
+    driver,
+    url,
+    statement1,
+    statement2,
+    statement3,
+    link1,
+    link2,
+    link3,
+    link4,
+    link5,
+    link6,
 ):
     """Gets the gtm and lang from the  homepage and check for presence of links and statements mentioned."""
     soup = get_soup(driver, url)
@@ -131,7 +154,6 @@ def main(FILE_PATH):
     HOMEPAGE_ONLY = True
     NEW_URL_STARTING_ROW = 2
     driver = init_driver()
-
 
     wb = load_workbook(FILE_PATH)
     websites = wb["Websites"]
@@ -253,7 +275,7 @@ def main(FILE_PATH):
                 # save after scraping each site
                 wb.save(FILE_PATH)
             except Exception as e:
-                print(colored(f"{website['url']} Fails due to {e}", 'red'))
+                print(colored(f"{website['url']} Fails due to {e}", "red"))
                 errors.append((website["url"], str(e)))
 
         else:
@@ -291,17 +313,17 @@ def main(FILE_PATH):
                     # save after scraping each site
                     wb.save(FILE_PATH)
                 except Exception as e:
-                    print(colored(f"{website['url']} Fails due to {e}", 'red'))
+                    print(colored(f"{website['url']} Fails due to {e}", "red"))
                     errors.append((webpage, str(e)))
 
     try:
         wb.save(FILE_PATH)
-        print(f'Saved the data into {FILE_PATH}')
+        print(f"Saved the data into {FILE_PATH}")
+        driver.close()
     except PermissionError:
-        print(colored("PermissionError: Please close the working excel file", 'red'))
+        print(colored("PermissionError: Please close the working excel file", "red"))
 
 
 if __name__ == "__main__":
-    FILE_PATH = "webpages.xlsx"  
+    FILE_PATH = "webpages.xlsx"
     main(FILE_PATH)
-

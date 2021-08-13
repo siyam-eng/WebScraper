@@ -1,7 +1,4 @@
 from bs4 import BeautifulSoup
-import requests
-import requests.exceptions
-from urllib.parse import urlsplit
 from collections import deque
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill
@@ -40,13 +37,13 @@ def get_html(driver: webdriver.Chrome, url: str, sleep=2) -> str:
         time.sleep(sleep)
 
         # run javascript to get the innerHTML
-        html = driver.execute_script("return document.body.innerHTML;").strip()
+        html = driver.page_source
 
         # print a 'scraping' message
         print(colored(f"Successfully Scraped {url}", 'green'))
         return html
     except Exception as exception:
-        print(colored(f"{url} failed due to {exception}", 'red'))
+        print(colored(f"{url} failed due to {str(exception)}", 'red'))
 
 
 # Run get_html and return a soup object
@@ -173,3 +170,6 @@ if __name__ == '__main__':
     wb.save(FILE_PATH)
     
     print(f"Saved the urls into {FILE_PATH}")
+
+    # close the driver
+    driver.close()
