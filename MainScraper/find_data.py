@@ -2,7 +2,7 @@ import re
 
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill
-from list_urls import map_urls, get_soup, init_driver
+from list_urls import map_links, get_soup, init_driver
 from termcolor import colored
 
 
@@ -65,7 +65,7 @@ def get_data(
 ):
     """Gets the gtm and lang from a page and check for presence of links and statements mentioned."""
 
-    for i in map_urls(url):
+    for i in map_links(url):
         soup = get_soup(driver, url)
 
         gtm = find_gtm(soup)

@@ -105,7 +105,7 @@ def get_final_link(url, session, wb):
         return final_url
 
 
-def map_urls(driver, main_url):
+def map_links(driver, main_url):
     main_url = 'https://' + main_url if not main_url.startswith('http') else main_url
     main_url = main_url.lower() if not CASE_SENSITIVE else main_url
 
@@ -172,8 +172,67 @@ def map_urls(driver, main_url):
             yield url
 
 
+def map_homepage_links(driver, main_url):
+    "Return all links in the given url"
+    main_url = 'https://' + main_url if not main_url.startswith('http') else main_url
+    main_url = main_url.lower() if not CASE_SENSITIVE else main_url
+
+    soup = get_soup(driver, main_url)
+    processed_urls = set()
+
+    # extract base url to resolve relative links
+    base = main_url  # base = parts.netloc
+    strip_base = base.replace("www.", "")
+    base_url = main_url + '/' if not main_url.endswith('/') else main_url
+    extra_in_base = base_url.split('/')[-2]
+    path = main_url
+
+    if soup:
+        for link in soup.find_all('a'):
+            # extract link url from the anchor    
+            anchor = link.attrs["href"] if 'href' in link.attrs else ''
+            anchor = anchor.lower() if not CASE_SENSITIVE else anchor
+            # stopping duplication and filtering out usable links
+            media_extentions = ['.jpg', '.jpeg', '.gif', '.png', 'bmp', 'svg', 'mp4', 'wmv', 'mp3', 'pdf']
+            media_url = False
+            for extention in media_extentions:
+                if extention in anchor.lower():
+                    media_url = True
+            # checking if url is usable
+            conditions = (not anchor.endswith('#')) and (anchor.count('#') <= 1) and ('mailto' not in anchor) and ('tel' not in anchor)
+
+            if conditions and not media_url:
+                if anchor.startswith(main_url):
+                    if anchor not in processed_urls:
+                        processed_urls.add(anchor)
+                        yield anchor
+
+                elif anchor.startswith(f'/{extra_in_base}'):
+                    local_link = base_url + anchor.lstrip(f'/{extra_in_base}') 
+                    if local_link not in processed_urls:
+                        processed_urls.add(local_link)
+                        yield local_link
+
+                elif strip_base in anchor: 
+                    if anchor not in processed_urls:
+                        processed_urls.add(anchor)
+                        yield anchor
+
+                elif not anchor.startswith('http'):  
+                    local_link = path + anchor 
+                    if local_link not in processed_urls:
+                        processed_urls.add(local_link)
+                        yield local_link
+
+                # yield external links too
+                elif not anchor.startswith(main_url):
+                    if anchor not in processed_urls:
+                        processed_urls.add(anchor)
+                        yield anchor
+
+
 # combine all the functions to get the expected output
-def main(file_path, driver, start=2):
+def main(file_path, driver, homepage_only=True, start=2):
     wb = load_workbook(file_path)
     websites = wb['Websites']
     webpages = wb.create_sheet('Webpages') if 'Webpages' not in wb.sheetnames else wb['Webpages']
@@ -193,6 +252,9 @@ def main(file_path, driver, start=2):
 
         # fixing the column width
         webpages.column_dimensions[col].width = 20
+    
+    # decide on homepage only or to scrape whole website
+    map_urls = (lambda homepage_only: map_homepage_links if homepage_only else map_links)(homepage_only)
 
     # iterate over all website urls and map the urls 
     for website in website_urls_generator(websites, start=start):
@@ -226,8 +288,9 @@ def main(file_path, driver, start=2):
 
 if __name__ == '__main__':
     FILE_PATH = 'webpages - Copy.xlsx'
+    HOMEPAGE_ONLY = True
     NEW_URL_STARTING_ROW = 2
     driver = init_driver()
-    main(FILE_PATH, driver, start=NEW_URL_STARTING_ROW)
+    main(FILE_PATH, driver,homepage_only=HOMEPAGE_ONLY, start=NEW_URL_STARTING_ROW)
 
     
