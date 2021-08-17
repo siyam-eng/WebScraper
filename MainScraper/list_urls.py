@@ -6,11 +6,21 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 import time
+import requests
+from requests import Session
 from termcolor import colored
-
+import random
 
 # determines if links should be case sensitive or not
 CASE_SENSITIVE = False
+
+HEADERS_LIST = [
+'Mozilla/5.0 (Windows; U; Windows NT 6.1; x64; fr; rv:1.9.2.13) Gecko/20101203 Firebird/3.6.13',
+'Mozilla/5.0 (compatible, MSIE 11, Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko',
+'Mozilla/5.0 (Windows; U; Windows NT 6.1; rv:2.2) Gecko/20110201',
+'Opera/9.80 (X11; Linux i686; Ubuntu/14.10) Presto/2.12.388 Version/12.16',
+'Mozilla/5.0 (Windows NT 5.2; RW; rv:7.0a1) Gecko/20091211 SeaMonkey/9.23a1pre'
+]
 
 
 def init_driver():
@@ -63,17 +73,41 @@ def website_urls_generator(websites, start=2):
             yield cell.value 
 
 
+
+# takes an url and returns its status code and final redirected url
+def get_final_link(url, session, wb):
+    if url:
+        # creating the request Session
+        header = {
+            "User-Agent": random.choice(HEADERS_LIST),
+            "X-Requested-With": "XMLHttpRequest",
+        }
+        session.headers.update(header)
+
+        url = "https://" + url if not url.startswith("http") else url
+        final_url = url
+        try:
+            response = session.get(url)
+            final_url = response.url
+        except requests.exceptions.SSLError:
+            response = session.get(url, verify=False)
+            final_url = response.url
+        except requests.exceptions.ConnectionError as err:
+            final_url = url
+            error = str(err)
+            wb["Errors"].append(
+                ("Failed to get the final url for ", url, "Due to", error)
+            )
+        except Exception as err:
+            wb["Errors"].append(
+                ("Failed to get the final url for ", url, "Due to", str(err))
+            )
+        return final_url
+
+
 def map_urls(driver, main_url):
     main_url = 'https://' + main_url if not main_url.startswith('http') else main_url
     main_url = main_url.lower() if not CASE_SENSITIVE else main_url
-
-    HEADERS_LIST = [
-    'Mozilla/5.0 (Windows; U; Windows NT 6.1; x64; fr; rv:1.9.2.13) Gecko/20101203 Firebird/3.6.13',
-    'Mozilla/5.0 (compatible, MSIE 11, Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko',
-    'Mozilla/5.0 (Windows; U; Windows NT 6.1; rv:2.2) Gecko/20110201',
-    'Opera/9.80 (X11; Linux i686; Ubuntu/14.10) Presto/2.12.388 Version/12.16',
-    'Mozilla/5.0 (Windows NT 5.2; RW; rv:7.0a1) Gecko/20091211 SeaMonkey/9.23a1pre'
-    ]
 
     # a queue of urls to be crawled next
     new_urls = deque([main_url])
@@ -84,6 +118,12 @@ def map_urls(driver, main_url):
         # move url from the queue to processed url set    
         url = new_urls.popleft()    
         processed_urls.add(url)    
+
+        # do not find urls on external links, just yield them and go on to the next 
+        if url.startswith('http') and not url.startswith(main_url):
+            yield url
+            continue
+            
 
         # extract base url to resolve relative links
         base = main_url  # base = parts.netloc
@@ -125,24 +165,25 @@ def map_urls(driver, main_url):
                         local_link = path + anchor 
                         if not local_link in new_urls and not local_link in processed_urls:
                             new_urls.append(local_link)
-
+                    # add external links to the list
+                    elif not anchor.startswith(main_url):
+                        if not anchor in new_urls and not anchor in processed_urls:
+                            new_urls.append(anchor) 
             yield url
 
 
-if __name__ == '__main__':
-    FILE_PATH = 'webpages.xlsx'
-    NEW_URL_STARTING_ROW = 2
-    driver = init_driver()
-
-    wb = load_workbook(FILE_PATH)
+# combine all the functions to get the expected output
+def main(file_path, driver, start=2):
+    wb = load_workbook(file_path)
     websites = wb['Websites']
     webpages = wb.create_sheet('Webpages') if 'Webpages' not in wb.sheetnames else wb['Webpages']
+    errors = wb.create_sheet('Errors') if 'Errors' not in wb.sheetnames else wb['Errors']
 
     font = Font(color="000000", bold=True)
     bg_color = PatternFill(fgColor='E8E8E8', fill_type='solid')
 
     # editing the users sheet
-    webpage_columns = zip(('A',  'B'), ('Website', 'Webpage'))
+    webpage_columns = zip(('A',  'B', 'C'), ('Website', 'Webpage', 'Final Link Destination'))
     for col, value in webpage_columns:
         cell = webpages[f'{col}1']
         cell.value = value
@@ -154,13 +195,21 @@ if __name__ == '__main__':
         webpages.column_dimensions[col].width = 20
 
     # iterate over all website urls and map the urls 
-    for website in website_urls_generator(websites, start=NEW_URL_STARTING_ROW):
+    for website in website_urls_generator(websites, start=start):
         count = 0
+        session = Session()
+
         for webpage in map_urls(driver, website):
             count += 1
-            print(colored(f"{website}({count}) --> {webpage}", 'magenta'))
+            # get the final destination of a link
+            final_link = get_final_link(webpage, session, wb)
+
+            # print a colored feedback of the process
+            print(f"{colored(website, 'magenta')}({count}) --> {colored(webpage, 'blue')} --> {colored(final_link, 'blue')}")
+
+            # add the data to excel
             webpages.append((
-                website, webpage
+                website, webpage, final_link
             ))
 
             # save after each link is added
@@ -173,3 +222,12 @@ if __name__ == '__main__':
 
     # close the driver
     driver.close()
+
+
+if __name__ == '__main__':
+    FILE_PATH = 'webpages - Copy.xlsx'
+    NEW_URL_STARTING_ROW = 2
+    driver = init_driver()
+    main(FILE_PATH, driver, start=NEW_URL_STARTING_ROW)
+
+    
