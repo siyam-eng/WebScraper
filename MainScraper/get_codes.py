@@ -17,34 +17,40 @@ HEADERS_LIST = [
 'Mozilla/5.0 (Windows NT 5.2; RW; rv:7.0a1) Gecko/20091211 SeaMonkey/9.23a1pre'
 ]
 
+def find_indices(str, ch):
+    """Find all indices of a character in a string"""
+    indexes = []
+    for i, ltr in enumerate(str):
+        if ltr == ch:
+            indexes.append(i)
+    return indexes 
+
 
 def find_code(soup, code):
     """Finds all codes matching with the given code"""
     codes = soup.findAll(text=re.compile(f'{code}'))
     codes2 = []
-    def find_indexes(str, ch):
-        indexes = []
-        for i, ltr in enumerate(str):
-            if ltr == ch:
-                indexes.append(i)
-        return indexes
     for c in codes:
-        code2 = re.search(f'[A-Z-/]*{code}[A-Z0-9a-z-/]*', str(c))[0]
-        code2 = code2.lstrip('-') if code2.startswith('-') else code2
-        code2 = code2.lstrip('/') if code2.startswith('/') else code2
-        if '/' in code2 or '-' in code2:
-            # limiting the lenth of the code upto 3rd seperator
-            if code2.count('-') > 4:
-                third_hyphen = find_indexes(code2, '-')[4]
-                code2 = code2[: third_hyphen]
-            if code2.count('/') > 3:
-                third_slash = find_indexes(code2, '/')[3]
-                code2 = code2[: third_slash]
-            if code2.count('/') > 2 and '-' in code2:
-                code2 = code2[: code2.index('-')]
+        code_list = re.findall(f'[A-Z-/]*{code}[A-Z0-9a-z-/]*', str(c))
+        for code2 in code_list:
+            code2 = code2.lstrip('-') if code2.startswith('-') else code2
+            code2 = code2.lstrip('/') if code2.startswith('/') else code2
+            if '/' in code2 or '-' in code2:
+                # print(code2)
+                # limiting the lenth of the code upto 3rd seperator
+                if code2.count('-') > 4:
+                    third_hyphen = find_indices(code2, '-')[4]
+                    code2 = code2[: third_hyphen]
+                if code2.count('/') > 3:
+                    third_slash = find_indices(code2, '/')[3]
+                    code2 = code2[: third_slash]
+                if code2.count('/') > 2 and '-' in code2:
+                    code2 = code2[: code2.index('-')]
 
-
-            codes2.append(code2)
+                if code2.count('/') > 2 and code.count('-') > 4:
+                    # codes2.append(code2)
+                    print(code2)
+                codes2.append(code2)
     return codes2
 
 
@@ -132,4 +138,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
