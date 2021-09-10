@@ -46,10 +46,7 @@ def find_code(soup, code):
                     code2 = code2[: third_slash]
                 if code2.count('/') > 2 and '-' in code2:
                     code2 = code2[: code2.index('-')]
-
-                if code2.count('/') > 2 and code.count('-') > 4:
-                    # codes2.append(code2)
-                    print(code2)
+                
                 codes2.append(code2)
     return codes2
 
@@ -86,12 +83,11 @@ def get_response(url):
 
 
 
-def main():
-    FILE_PATH = 'webpages.xlsx'
+def main(file_path):
     driver = init_driver()
 
     # initialize the necessary excel sheets
-    wb = load_workbook(FILE_PATH)
+    wb = load_workbook(file_path)
     webpages = wb['Websites']
     code_lookups = wb['Code_Lookups']
     codes = wb.create_sheet('Codes') if 'Codes' not in wb.sheetnames else wb['Codes']
@@ -127,14 +123,15 @@ def main():
                     code['length'],
                 ))
                 # save after every code
-                wb.save(FILE_PATH)
+                wb.save(file_path)
     # save at the end
-    wb.save(FILE_PATH)
-    print(f"Saved the CODES into {FILE_PATH}")
+    wb.save(file_path)
+    print(f"Saved the CODES into {file_path}")
 
     # close the driver
     driver.close()
 
 
 if __name__ == '__main__':
-    main()
+    FILE_PATH = 'webpages.xlsx'
+    main(FILE_PATH)

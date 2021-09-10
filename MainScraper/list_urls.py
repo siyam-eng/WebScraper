@@ -287,7 +287,7 @@ def main(file_path, driver, homepage_only=True, start=2):
 
 
 if __name__ == '__main__':
-    FILE_PATH = 'webpages - Copy.xlsx'
+    FILE_PATH = 'webpages.xlsx'
     HOMEPAGE_ONLY = True
     NEW_URL_STARTING_ROW = 2
     driver = init_driver()

@@ -1,10 +1,11 @@
 import re
+from typing import Tuple
 
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill
 from list_urls import map_links, get_soup, init_driver
 from termcolor import colored
-
+from requests_html import HTMLSession
 
 def find_gtm(soup):
     """Gets the GTM from a web page"""
@@ -49,6 +50,17 @@ def find_html_lang(soup):
     if html and "lang" in html.attrs:
         return html.attrs["lang"]
 
+def find_sitemap(url):
+    """Send a request to URL/sitemap.xml to check if it exists"""
+    url = 'https://' + url if not url.startswith('http') else url
+    
+    try:
+        session = HTMLSession()
+        response = session.get(f"{url}/sitemap.xml")
+        return response.ok
+    except Exception:
+        return False
+
 
 def get_data(
     driver,
@@ -80,6 +92,7 @@ def get_data(
         link_6 = find_link(soup, link6)
         lang = find_html_lang(soup)
         no_direct_yt_link = find_link(soup, "youtube.com")
+        has_sitemap = find_sitemap(url)
 
         data_dict = {
             "url": i,
@@ -95,6 +108,7 @@ def get_data(
             "link6": link_6,
             "lang": lang,
             "no_direct_yt_link": no_direct_yt_link,
+            "Has Sitemap": has_sitemap
         }
 
         yield data_dict
@@ -130,6 +144,7 @@ def get_homepage_data(
     no_direct_yt_link = not (
         find_link(soup, "youtube.com/em") or find_link(soup, "youtube.com/wa")
     )
+    has_sitemap = find_sitemap(url)
 
     data_dict = {
         "url": url,
@@ -145,15 +160,45 @@ def get_homepage_data(
         "link6": link_6,
         "lang": lang,
         "no_direct_yt_link": no_direct_yt_link,
+        "Has Sitemap": has_sitemap
     }
 
     return data_dict
 
 
-def main(FILE_PATH):
-    HOMEPAGE_ONLY = True
-    NEW_URL_STARTING_ROW = 2
-    driver = init_driver()
+def website_urls_generator(websites, start=2):
+    """Generate urls from the excel file"""
+    for row in range(start, websites.max_row + 1):
+        website = websites[f"A{row}"].value
+        link1 = websites[f"B{row}"].value
+        link2 = websites[f"C{row}"].value
+        link3 = websites[f"D{row}"].value
+        link4 = websites[f"E{row}"].value
+        link5 = websites[f"F{row}"].value
+        link6 = websites[f"G{row}"].value
+        statement1 = websites[f"H{row}"].value
+        statement2 = websites[f"I{row}"].value
+        statement3 = websites[f"J{row}"].value
+
+        if website:
+            data_row = {
+                "url": website,
+                "link1": link1,
+                "link2": link2,
+                "link3": link3,
+                "link4": link4,
+                "link5": link5,
+                "link6": link6,
+                "statement1": statement1,
+                "statement2": statement2,
+                "statement3": statement3,
+            }
+            yield data_row
+
+def init_excel() -> Tuple:
+    """Initialize the excel workbook.
+    
+    return (wb, websites, page_results, errors)"""
 
     wb = load_workbook(FILE_PATH)
     websites = wb["Websites"]
@@ -186,6 +231,7 @@ def main(FILE_PATH):
             "statement2",
             "statement3",
             "Page contains no direct youtube links",
+            "Has Sitemap"
         ),
     )
     for col, value in page_results_columns:
@@ -207,36 +253,15 @@ def main(FILE_PATH):
         # fixing the column width
         errors.column_dimensions[col].width = 40
 
-    def website_urls_generator():
-        start = NEW_URL_STARTING_ROW
-        for row in range(start, websites.max_row + 1):
-            website = websites[f"A{row}"].value
-            link1 = websites[f"B{row}"].value
-            link2 = websites[f"C{row}"].value
-            link3 = websites[f"D{row}"].value
-            link4 = websites[f"E{row}"].value
-            link5 = websites[f"F{row}"].value
-            link6 = websites[f"G{row}"].value
-            statement1 = websites[f"H{row}"].value
-            statement2 = websites[f"I{row}"].value
-            statement3 = websites[f"J{row}"].value
+    return (wb, websites, page_results, errors)
 
-            if website:
-                data_row = {
-                    "url": website,
-                    "link1": link1,
-                    "link2": link2,
-                    "link3": link3,
-                    "link4": link4,
-                    "link5": link5,
-                    "link6": link6,
-                    "statement1": statement1,
-                    "statement2": statement2,
-                    "statement3": statement3,
-                }
-                yield data_row
 
-    for website in website_urls_generator():
+def main(FILE_PATH):
+    HOMEPAGE_ONLY = True
+    driver = init_driver()
+    wb, websites, page_results, errors = init_excel()
+
+    for website in website_urls_generator(websites):
         if HOMEPAGE_ONLY:
             # fetching data from the excel sheet
             try:
@@ -270,6 +295,7 @@ def main(FILE_PATH):
                         data_dict["statement2"],
                         data_dict["statement3"],
                         data_dict["no_direct_yt_link"],
+                        data_dict["Has Sitemap"]
                     )
                 )
                 # save after scraping each site
@@ -308,6 +334,8 @@ def main(FILE_PATH):
                             webpage["statement2"],
                             webpage["statement3"],
                             webpage["no_direct_yt_link"],
+                            data_dict["Has Sitemap"]
+
                         )
                     )
                     # save after scraping each site
