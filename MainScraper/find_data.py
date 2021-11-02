@@ -353,5 +353,12 @@ def main(FILE_PATH):
 
 
 if __name__ == "__main__":
-    FILE_PATH = "webpages.xlsx"
-    main(FILE_PATH)
+    # FILE_PATH = "webpages.xlsx"
+    # main(FILE_PATH)
+
+    driver = init_driver()
+    soup = get_soup(driver, "https://amp.flonase.com/")
+
+    gtm = find_gtm(soup)
+
+    print(gtm)
